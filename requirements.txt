@@ -1,0 +1,11 @@
+# NOTE: torch on Linux installs the CUDA wheel by default (~2.5GB).
+# For a CPU-only container use instead:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+fastapi>=0.110
+uvicorn[standard]>=0.29
+transformers>=4.40
+peft>=0.10
+accelerate>=0.29
+bitsandbytes>=0.42
+huggingface_hub>=0.22
+torch>=2.2

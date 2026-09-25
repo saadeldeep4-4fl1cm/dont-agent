@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Project runtime
+/tmp/agent_workspace/
+*.log
