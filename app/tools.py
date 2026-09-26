@@ -20,6 +20,11 @@ from pathlib import Path
 WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_DIR", "/tmp/agent_workspace")).resolve()
 WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
 
+# Public deployments must not offer arbitrary code execution: it gets abused
+# for crypto mining within hours. Set ENABLE_CODE_EXEC=true only if you
+# accept that risk (private deployment / trusted users).
+CODE_EXEC_ENABLED = os.environ.get("ENABLE_CODE_EXEC", "false").strip().lower() == "true"
+
 MAX_OUTPUT_CHARS = 6000
 
 
@@ -108,6 +113,11 @@ TOOLS = {
 
 def call_tool(name: str, args: dict) -> str:
     """Dispatch a tool call by name; never raises, returns an error string."""
+    if name == "run_python" and not CODE_EXEC_ENABLED:
+        return (
+            "ERROR: code execution is disabled on this deployment "
+            "(ENABLE_CODE_EXEC is not true). Explain the code instead of running it."
+        )
     tool = TOOLS.get(name)
     if tool is None:
         return f"ERROR: unknown tool {name!r}. Available: {', '.join(TOOLS)}"

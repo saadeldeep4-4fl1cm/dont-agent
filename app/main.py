@@ -12,8 +12,9 @@ and passes Railway's healthcheck even while the model downloads.
 from __future__ import annotations
 
 import asyncio
+import os
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -21,6 +22,15 @@ from .agent import run_agent
 from .model import is_loaded
 
 app = FastAPI(title="Don't Agent")
+
+# If API_KEY is set, POST /chat requires it via the X-API-Key header.
+# / and /health stay public (Railway's healthcheck needs /health).
+API_KEY = os.environ.get("API_KEY", "").strip()
+
+
+async def require_api_key(x_api_key: str | None = Header(default=None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
 class ChatRequest(BaseModel):
@@ -38,7 +48,7 @@ def health():
     return {"status": "ok", "model_loaded": is_loaded()}
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)])
 async def chat(req: ChatRequest):
     # generate() blocks; run it off the event loop.
     result = await asyncio.to_thread(run_agent, req.message, req.history)
@@ -64,20 +74,28 @@ button:disabled{opacity:.5}
 </head>
 <body>
 <h2>🤖 Don't Agent</h2>
+<div id="keyrow" style="display:flex;gap:8px;margin-bottom:8px">
+<input id="key" type="password" placeholder="API key (if required)" autocomplete="off"
+ style="flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:#16181d;color:#e8e8e8">
+</div>
 <div id="log"></div>
 <div id="row">
 <input id="inp" placeholder="Ask me to write or debug code..." autocomplete="off">
 <button id="btn" onclick="send()">Send</button>
 </div>
 <script>
-const log=document.getElementById('log'),inp=document.getElementById('inp'),btn=document.getElementById('btn');
+const log=document.getElementById('log'),inp=document.getElementById('inp'),btn=document.getElementById('btn'),keyf=document.getElementById('key');
+keyf.value=localStorage.getItem('dont_agent_key')||'';
+keyf.addEventListener('change',()=>localStorage.setItem('dont_agent_key',keyf.value.trim()));
 let history=[];
 function add(cls,t){const d=document.createElement('div');d.className='msg '+cls;d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
 async function send(){
  const m=inp.value.trim();if(!m)return;inp.value='';btn.disabled=true;
  add('user','You: '+m);const th=add('sys','thinking…');
  try{
-  const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:m,history:history})});
+  const headers={'Content-Type':'application/json'};
+  if(keyf.value.trim())headers['X-API-Key']=keyf.value.trim();
+  const r=await fetch('/chat',{method:'POST',headers:headers,body:JSON.stringify({message:m,history:history})});
   if(!r.ok)throw new Error('HTTP '+r.status);
   const j=await r.json();th.remove();
   add('agent',"Don't Agent ("+j.steps+" steps): "+j.reply);

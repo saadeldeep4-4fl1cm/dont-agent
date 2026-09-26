@@ -59,9 +59,10 @@ def _load():
                 trust_remote_code=True,
             )
         else:
+            # CPU: float16 halves RAM (~3GB for 1.5B) vs float32 (~6GB).
             model = AutoModelForCausalLM.from_pretrained(
                 MODEL_ID,
-                torch_dtype=torch.float32,
+                torch_dtype=torch.float16,
                 device_map="cpu",
                 trust_remote_code=True,
             )
